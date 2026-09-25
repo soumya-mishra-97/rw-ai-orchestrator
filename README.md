@@ -1,6 +1,6 @@
 # Robert Walters AI-Orchestrator
 
-**A multi-agent SDLC pipeline with an independent evaluator agent.
+**A multi-agent SDLC pipeline with an independent evaluator agent.**
 
 You enter a feature requirement in the browser, for example "Build a Leave Management System". A **Master Orchestrator** validates it, plans the workflow and dispatches it to five agents:
 
