@@ -1,6 +1,6 @@
 # Robert Walters AI-Orchestrator
 
-**A multi-agent SDLC pipeline with an independent evaluator agent.** CIS AI Engineering Challenge, Track 3.
+**A multi-agent SDLC pipeline with an independent evaluator agent.
 
 You enter a feature requirement in the browser, for example "Build a Leave Management System". A **Master Orchestrator** validates it, plans the workflow and dispatches it to five agents:
 
@@ -8,7 +8,7 @@ You enter a feature requirement in the browser, for example "Build a Leave Manag
 
 An **Evaluator** scores every handoff on a five-dimension rubric. A low-quality handoff is **retried** with specific feedback, moved up to a stronger model on its last attempt, and finally **escalated to a human**, who can accept it, redirect it or abort the run. Every model call, score, retry and decision goes into a tamper-evident audit log, and that log is the dataset behind every metric in the docs.
 
-**Purpose.** Track 3 of the CIS AI Engineering Challenge asks for a five-persona SDLC loop with a separate evaluator whose reliability is *measurable*, not merely orchestration that looks like it works. Here every gate decision is computed in code from rubric scores, every retry and escalation is recorded, and the evaluation harness turns that record into pass rates, retry rates, latency, tokens and cost.
+**Purpose.** It asks for a five-persona SDLC loop with a separate evaluator whose reliability is *measurable*, not merely orchestration that looks like it works. Here every gate decision is computed in code from rubric scores, every retry and escalation is recorded, and the evaluation harness turns that record into pass rates, retry rates, latency, tokens and cost.
 
 The browser shows each agent working in real time, and an in-app **Product Guide** explains the whole system.
 
