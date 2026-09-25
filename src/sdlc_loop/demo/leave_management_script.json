@@ -1,0 +1,620 @@
+{
+ "_comment": "Offline demo script for 'Build a Leave Management System'. BA attempt 1 is deliberately weak (untestable criteria, invented Workday integration): the Tier-1 judge scores it borderline (3.2), the Tier-2 judge confirms (3.0) and the gate returns RETRY; attempt 2 passes.",
+ "persona:pm": [
+  {
+   "objective": "Give employees a self-service way to request leave and managers a way to approve it, backed by accurate, policy-driven leave balances.",
+   "business_goals": [
+    "Employees can request leave and see their remaining balance without contacting HR.",
+    "Managers can approve or reject leave requests with visibility of their team's absences.",
+    "Leave balances are calculated consistently from the organisation's leave policy.",
+    "HR has an auditable record of every leave request and decision."
+   ],
+   "success_metrics": [
+    ">= 90% of leave requests submitted through the system within 3 months of launch.",
+    "Median manager approval turnaround <= 2 business days.",
+    "0 balance discrepancies between the system and payroll in the monthly reconciliation."
+   ],
+   "constraints": [
+    "No existing HR, payroll or identity systems are named in the request; integration targets are unconfirmed and must not be assumed.",
+    "Leave policy rules (entitlements, accrual, carry-over, public holidays) are not specified and must be supplied by HR.",
+    "Leave records are personal employee data (and sick-leave reasons may be health data), so they fall under the organisation's data-protection obligations."
+   ],
+   "out_of_scope": [
+    "Payroll calculation and payment.",
+    "Time and attendance tracking.",
+    "Multi-country statutory leave rules in phase 1."
+   ],
+   "stakeholders": [
+    "Employees",
+    "Line managers",
+    "HR operations",
+    "Payroll team",
+    "IT security / identity team"
+   ]
+  }
+ ],
+ "persona:ba": [
+  {
+   "user_stories": [
+    {
+     "id": "US-1",
+     "as_a": "employee",
+     "i_want": "to request leave",
+     "so_that": "I can take time off",
+     "acceptance_criteria": [
+      {
+       "id": "US-1-AC1",
+       "description": "The request form is easy to use."
+      },
+      {
+       "id": "US-1-AC2",
+       "description": "Requests are saved correctly."
+      }
+     ]
+    },
+    {
+     "id": "US-2",
+     "as_a": "manager",
+     "i_want": "to approve leave",
+     "so_that": "my team can take time off",
+     "acceptance_criteria": [
+      {
+       "id": "US-2-AC1",
+       "description": "Approvals work correctly."
+      },
+      {
+       "id": "US-2-AC2",
+       "description": "The manager is notified."
+      }
+     ]
+    },
+    {
+     "id": "US-3",
+     "as_a": "employee",
+     "i_want": "to see my balance",
+     "so_that": "I know how much leave I have",
+     "acceptance_criteria": [
+      {
+       "id": "US-3-AC1",
+       "description": "The balance is accurate."
+      }
+     ]
+    },
+    {
+     "id": "US-4",
+     "as_a": "HR administrator",
+     "i_want": "to see all leave",
+     "so_that": "I can report on it",
+     "acceptance_criteria": [
+      {
+       "id": "US-4-AC1",
+       "description": "HR can see a report."
+      }
+     ]
+    }
+   ],
+   "non_functional_requirements": [
+    "Employee and manager data is synchronised in real time from Workday via its REST API.",
+    "Approved leave is pushed automatically to the payroll system.",
+    "The system should be fast and secure."
+   ],
+   "open_questions": [
+    "Which leave types are needed?"
+   ],
+   "traceability": [
+    {
+     "story_id": "US-1",
+     "business_goal_indices": [
+      0
+     ]
+    },
+    {
+     "story_id": "US-2",
+     "business_goal_indices": [
+      1
+     ]
+    },
+    {
+     "story_id": "US-3",
+     "business_goal_indices": [
+      0,
+      2
+     ]
+    },
+    {
+     "story_id": "US-4",
+     "business_goal_indices": [
+      3
+     ]
+    }
+   ]
+  },
+  {
+   "user_stories": [
+    {
+     "id": "US-1",
+     "as_a": "employee",
+     "i_want": "to submit a leave request for a leave type and date range",
+     "so_that": "I can book time off without contacting HR",
+     "acceptance_criteria": [
+      {
+       "id": "US-1-AC1",
+       "description": "Given a leave type, start date and end date, a request is created with status PENDING and its working days are calculated excluding weekends and configured public holidays."
+      },
+      {
+       "id": "US-1-AC2",
+       "description": "A request whose working days exceed the employee's available balance for that leave type is rejected and the available balance is shown."
+      },
+      {
+       "id": "US-1-AC3",
+       "description": "A request that overlaps one of the employee's PENDING or APPROVED requests is rejected."
+      }
+     ]
+    },
+    {
+     "id": "US-2",
+     "as_a": "line manager",
+     "i_want": "to approve or reject my direct reports' leave requests",
+     "so_that": "I control my team's cover",
+     "acceptance_criteria": [
+      {
+       "id": "US-2-AC1",
+       "description": "A manager can approve or reject only requests from their direct reports."
+      },
+      {
+       "id": "US-2-AC2",
+       "description": "Approving keeps the request's working days deducted from the balance; rejecting returns them to the balance."
+      },
+      {
+       "id": "US-2-AC3",
+       "description": "A rejection requires a reason, which is shown to the employee."
+      }
+     ]
+    },
+    {
+     "id": "US-3",
+     "as_a": "employee",
+     "i_want": "to see my remaining balance per leave type",
+     "so_that": "I can plan time off",
+     "acceptance_criteria": [
+      {
+       "id": "US-3-AC1",
+       "description": "Available balance = annual entitlement + carry-over (capped by policy) - approved days - pending days for the current leave year."
+      },
+      {
+       "id": "US-3-AC2",
+       "description": "Balances are shown separately for each leave type."
+      }
+     ]
+    },
+    {
+     "id": "US-4",
+     "as_a": "HR administrator",
+     "i_want": "to configure entitlement and carry-over per leave type",
+     "so_that": "balances follow our policy",
+     "acceptance_criteria": [
+      {
+       "id": "US-4-AC1",
+       "description": "HR can set annual entitlement and maximum carry-over for each leave type."
+      },
+      {
+       "id": "US-4-AC2",
+       "description": "A policy change applies from its effective date and does not alter already-approved requests."
+      }
+     ]
+    },
+    {
+     "id": "US-5",
+     "as_a": "HR administrator",
+     "i_want": "an audit trail of every leave action",
+     "so_that": "decisions can be evidenced",
+     "acceptance_criteria": [
+      {
+       "id": "US-5-AC1",
+       "description": "Every create, approve and reject action is recorded with actor, timestamp, previous status and new status."
+      },
+      {
+       "id": "US-5-AC2",
+       "description": "Audit records cannot be edited or deleted through the application."
+      }
+     ]
+    }
+   ],
+   "non_functional_requirements": [
+    "Security: role-based access for employee, manager and HR roles; authentication through the organisation's identity provider once it is confirmed (open question), local accounts only in the pilot.",
+    "Privacy: the optional leave reason may contain health data; it is visible only to the employee, their manager and HR, and is retained per the data-protection policy.",
+    "Performance: balance lookup p95 < 500 ms for 5,000 employees.",
+    "Availability: 99.5% during business hours.",
+    "Integration: no HRIS or payroll integration is assumed; approved leave is exported as a file until the payroll system is confirmed."
+   ],
+   "open_questions": [
+    "Which system is the source of truth for employees and reporting lines (HRIS), and how can we read from it?",
+    "Which identity provider should the system authenticate against?",
+    "What are the leave types, entitlements, accrual and carry-over rules, and public-holiday calendars per location?",
+    "Does payroll need approved leave, and in what format and frequency?",
+    "How should sick-leave reasons (health data) be handled and retained?"
+   ],
+   "traceability": [
+    {
+     "story_id": "US-1",
+     "business_goal_indices": [
+      0
+     ]
+    },
+    {
+     "story_id": "US-2",
+     "business_goal_indices": [
+      1
+     ]
+    },
+    {
+     "story_id": "US-3",
+     "business_goal_indices": [
+      0,
+      2
+     ]
+    },
+    {
+     "story_id": "US-4",
+     "business_goal_indices": [
+      2
+     ]
+    },
+    {
+     "story_id": "US-5",
+     "business_goal_indices": [
+      3
+     ]
+    }
+   ]
+  }
+ ],
+ "persona:architect": [
+  {
+   "components": [
+    {
+     "name": "Web UI",
+     "responsibility": "Employee request and balance screens, manager approval queue, HR policy and audit screens."
+    },
+    {
+     "name": "Leave Service",
+     "responsibility": "Validates and stores leave requests; enforces overlap and balance rules."
+    },
+    {
+     "name": "Policy Engine",
+     "responsibility": "Data-driven entitlement, carry-over and working-day rules per leave type with effective dates."
+    },
+    {
+     "name": "Approval Workflow",
+     "responsibility": "Routes requests to the employee's direct manager; records approve/reject decisions."
+    },
+    {
+     "name": "Directory Adapter",
+     "responsibility": "Provides employees and reporting lines; initial implementation is a nightly CSV import from HR."
+    },
+    {
+     "name": "Payroll Export Adapter",
+     "responsibility": "Produces a file of approved leave for payroll; format confirmed later."
+    },
+    {
+     "name": "Audit Log",
+     "responsibility": "Append-only record of every leave action."
+    }
+   ],
+   "integration_approach": "No HR, payroll or identity system is confirmed, so every external dependency sits behind an adapter interface with a deliberately simple first implementation: the Directory Adapter imports employees and reporting lines from a nightly HR-provided CSV; identity uses local accounts in the pilot behind an IdentityAdapter that will switch to the organisation's OIDC provider once confirmed; the Payroll Export Adapter writes a CSV of approved leave for manual upload. When HR confirms the real systems, only the adapters change, not the Leave Service or Policy Engine.",
+   "data_flow": "Employee submits a request in the Web UI -> Leave Service asks the Policy Engine for working days and available balance -> request stored as PENDING and logged in the Audit Log -> Approval Workflow looks up the manager via the Directory Adapter and queues it -> manager approves or rejects -> status updated and audited -> approved requests are included in the next Payroll Export file.",
+   "risks": [
+    {
+     "description": "Leave policy rules turn out more complex than modelled (accrual, pro-rata, carry-over).",
+     "mitigation": "Policy Engine is data-driven with effective dates; pilot with two leave types and validate against 20 worked examples supplied by HR before launch."
+    },
+    {
+     "description": "Reporting lines in the CSV import are stale, so requests route to the wrong manager.",
+     "mitigation": "Nightly import produces a diff report for HR; requests whose manager is unknown fall back to an HR approval queue."
+    },
+    {
+     "description": "Sick-leave reasons expose health data.",
+     "mitigation": "Reason field is optional, access-restricted to employee, manager and HR, and excluded from exports and reports."
+    }
+   ],
+   "adrs": [
+    {
+     "title": "Adapters for every unconfirmed integration",
+     "decision": "Put directory, identity and payroll behind adapters with file-based first implementations.",
+     "alternatives_considered": [
+      "Build directly against a presumed HRIS API",
+      "Wait for integration decisions before starting"
+     ],
+     "rationale": "The requirement names no systems; adapters let delivery start without inventing integrations."
+    },
+    {
+     "title": "Data-driven policy engine",
+     "decision": "Encode entitlements, carry-over and holidays as data with effective dates.",
+     "alternatives_considered": [
+      "Hard-coded rules per leave type"
+     ],
+     "rationale": "HR has not yet supplied the rules and they will change; data changes need no redeploy."
+    },
+    {
+     "title": "Modular monolith",
+     "decision": "Single deployable with clear module boundaries.",
+     "alternatives_considered": [
+      "Microservices per component"
+     ],
+     "rationale": "Small team and modest scale; boundaries allow later extraction."
+    }
+   ]
+  }
+ ],
+ "persona:dev": [
+  {
+   "files": [
+    {
+     "path": "leave/__init__.py",
+     "language": "python",
+     "content": ""
+    },
+    {
+     "path": "leave/policy.py",
+     "language": "python",
+     "content": "\"\"\"Policy Engine: working days and available balance (data-driven per leave type).\"\"\"\nfrom dataclasses import dataclass\nfrom datetime import timedelta\n\n\n@dataclass(frozen=True)\nclass LeavePolicy:\n    leave_type: str\n    annual_entitlement: float\n    max_carry_over: float = 0.0\n\n\ndef working_days(start, end, holidays=frozenset()):\n    \"\"\"Count Monday-Friday days from start to end inclusive, excluding holidays.\"\"\"\n    if end < start:\n        raise ValueError(\"end date is before start date\")\n    days, current = 0, start\n    while current <= end:\n        if current.weekday() < 5 and current not in holidays:\n            days += 1\n        current += timedelta(days=1)\n    return days\n\n\ndef available_balance(policy, carried_over, approved_days, pending_days):\n    \"\"\"Entitlement + capped carry-over - approved - pending (US-3-AC1).\"\"\"\n    carry = min(carried_over, policy.max_carry_over)\n    return policy.annual_entitlement + carry - approved_days - pending_days\n"
+    },
+    {
+     "path": "leave/service.py",
+     "language": "python",
+     "content": "\"\"\"Leave Service + Approval Workflow (in-memory repository for this slice).\"\"\"\nfrom dataclasses import dataclass, field\nfrom datetime import datetime, timezone\nfrom itertools import count\n\nfrom leave.policy import available_balance, working_days\n\nPENDING, APPROVED, REJECTED = \"PENDING\", \"APPROVED\", \"REJECTED\"\n\n\nclass LeaveError(ValueError):\n    pass\n\n\n@dataclass\nclass LeaveRequest:\n    id: int\n    employee_id: str\n    leave_type: str\n    start: object\n    end: object\n    days: int\n    status: str = PENDING\n    rejection_reason: str = \"\"\n\n\n@dataclass\nclass LeaveService:\n    policies: dict\n    managers: dict  # employee_id -> manager_id, supplied by the Directory Adapter\n    holidays: frozenset = frozenset()\n    carried_over: dict = field(default_factory=dict)\n    requests: dict = field(default_factory=dict)\n    audit: list = field(default_factory=list)\n    _ids: object = field(default_factory=lambda: count(1))\n\n    def _days(self, employee_id, leave_type, status):\n        return sum(r.days for r in self.requests.values()\n                   if r.employee_id == employee_id and r.leave_type == leave_type\n                   and r.status == status)\n\n    def balance(self, employee_id, leave_type):\n        return available_balance(\n            self.policies[leave_type],\n            self.carried_over.get((employee_id, leave_type), 0.0),\n            self._days(employee_id, leave_type, APPROVED),\n            self._days(employee_id, leave_type, PENDING),\n        )\n\n    def submit(self, employee_id, leave_type, start, end):\n        if leave_type not in self.policies:\n            raise LeaveError(f\"unknown leave type {leave_type}\")\n        days = working_days(start, end, self.holidays)\n        for r in self.requests.values():\n            if (r.employee_id == employee_id and r.status in (PENDING, APPROVED)\n                    and r.start <= end and start <= r.end):\n                raise LeaveError(f\"overlaps request {r.id}\")\n        available = self.balance(employee_id, leave_type)\n        if days > available:\n            raise LeaveError(f\"insufficient balance: requested {days}, available {available}\")\n        request = LeaveRequest(next(self._ids), employee_id, leave_type, start, end, days)\n        self.requests[request.id] = request\n        self._record(\"create\", employee_id, request, None)\n        return request\n\n    def approve(self, manager_id, request_id):\n        request = self._pending_for(manager_id, request_id)\n        previous, request.status = request.status, APPROVED\n        self._record(\"approve\", manager_id, request, previous)\n        return request\n\n    def reject(self, manager_id, request_id, reason):\n        if not reason or not reason.strip():\n            raise LeaveError(\"a rejection reason is required\")\n        request = self._pending_for(manager_id, request_id)\n        previous, request.status, request.rejection_reason = request.status, REJECTED, reason\n        self._record(\"reject\", manager_id, request, previous)\n        return request\n\n    def _pending_for(self, manager_id, request_id):\n        request = self.requests[request_id]\n        if self.managers.get(request.employee_id) != manager_id:\n            raise LeaveError(\"only the employee's direct manager can decide this request\")\n        if request.status != PENDING:\n            raise LeaveError(f\"request {request_id} is already {request.status}\")\n        return request\n\n    def _record(self, action, actor, request, previous):\n        self.audit.append({\n            \"action\": action, \"actor\": actor, \"request_id\": request.id,\n            \"previous_status\": previous, \"new_status\": request.status,\n            \"at\": datetime.now(timezone.utc).isoformat(),\n        })\n"
+    },
+    {
+     "path": "test_leave.py",
+     "language": "python",
+     "content": "from datetime import date\n\nimport pytest\n\nfrom leave.policy import LeavePolicy, working_days\nfrom leave.service import LeaveError, LeaveService\n\n\ndef make_service():\n    return LeaveService(\n        policies={\"ANNUAL\": LeavePolicy(\"ANNUAL\", annual_entitlement=20)},\n        managers={\"emp-1\": \"mgr-1\", \"emp-2\": \"mgr-2\"},\n        holidays=frozenset({date(2026, 12, 25)}),\n    )\n\n\ndef test_working_days_exclude_weekends_and_holidays():\n    # Mon 21 - Sun 27 Dec 2026 with 25 Dec a public holiday -> 4 working days\n    assert working_days(date(2026, 12, 21), date(2026, 12, 27), frozenset({date(2026, 12, 25)})) == 4\n\n\ndef test_submit_creates_pending_request_with_working_days():\n    request = make_service().submit(\"emp-1\", \"ANNUAL\", date(2026, 12, 21), date(2026, 12, 24))\n    assert request.status == \"PENDING\"\n    assert request.days == 4\n\n\ndef test_overlapping_request_is_rejected():\n    service = make_service()\n    service.submit(\"emp-1\", \"ANNUAL\", date(2026, 12, 21), date(2026, 12, 24))\n    with pytest.raises(LeaveError, match=\"overlaps\"):\n        service.submit(\"emp-1\", \"ANNUAL\", date(2026, 12, 23), date(2026, 12, 29))\n\n\ndef test_request_exceeding_balance_is_rejected():\n    with pytest.raises(LeaveError, match=\"insufficient balance\"):\n        make_service().submit(\"emp-1\", \"ANNUAL\", date(2026, 1, 5), date(2026, 2, 13))\n\n\ndef test_only_direct_manager_decides_and_rejection_needs_reason():\n    service = make_service()\n    request = service.submit(\"emp-1\", \"ANNUAL\", date(2026, 12, 21), date(2026, 12, 22))\n    with pytest.raises(LeaveError, match=\"direct manager\"):\n        service.approve(\"mgr-2\", request.id)\n    with pytest.raises(LeaveError, match=\"reason\"):\n        service.reject(\"mgr-1\", request.id, \" \")\n\n\ndef test_reject_returns_days_and_approve_keeps_them_deducted():\n    service = make_service()\n    first = service.submit(\"emp-1\", \"ANNUAL\", date(2026, 12, 21), date(2026, 12, 22))\n    assert service.balance(\"emp-1\", \"ANNUAL\") == 18\n    service.reject(\"mgr-1\", first.id, \"team cover\")\n    assert service.balance(\"emp-1\", \"ANNUAL\") == 20\n    second = service.submit(\"emp-1\", \"ANNUAL\", date(2026, 12, 21), date(2026, 12, 23))\n    service.approve(\"mgr-1\", second.id)\n    assert service.balance(\"emp-1\", \"ANNUAL\") == 17\n    assert [a[\"action\"] for a in service.audit] == [\"create\", \"reject\", \"create\", \"approve\"]\n"
+    }
+   ],
+   "implemented_story_ids": [
+    "US-1",
+    "US-2"
+   ],
+   "stubbed_stories": [
+    {
+     "story_id": "US-3",
+     "plan": "Balance screen: expose LeaveService.balance per leave type through the Leave Service API; the calculation (US-3-AC1) already exists in policy.available_balance."
+    },
+    {
+     "story_id": "US-4",
+     "plan": "Policy admin: persist LeavePolicy rows with an effective_from date in the Policy Engine; requests keep the policy version they were approved under."
+    },
+    {
+     "story_id": "US-5",
+     "plan": "Audit Log: move the in-memory audit list to an append-only table with no UPDATE/DELETE grants for the application role."
+    }
+   ],
+   "deviations": [
+    "The repository is in-memory in this slice; persistence is designed but not implemented.",
+    "The Directory Adapter is represented by the managers mapping passed to LeaveService."
+   ],
+   "summary": "Implemented the Policy Engine (working days, available balance) and the Leave Service with Approval Workflow for US-1 and US-2, including overlap and balance checks, direct-manager authorisation, mandatory rejection reasons and an audit record per action. Every external dependency stays behind the adapter boundary from the design. US-3, US-4 and US-5 are stubbed with plans."
+  }
+ ],
+ "persona:qa": [
+  {
+   "test_cases": [
+    {
+     "id": "TC-1",
+     "story_id": "US-1",
+     "acceptance_criterion_ids": [
+      "US-1-AC1"
+     ],
+     "type": "unit",
+     "steps": [
+      "Count working days for Mon 21 - Sun 27 Dec 2026 with 25 Dec as a holiday",
+      "Submit a 4-day request"
+     ],
+     "expected_result": "4 working days; request created with status PENDING and days = 4."
+    },
+    {
+     "id": "TC-2",
+     "story_id": "US-1",
+     "acceptance_criterion_ids": [
+      "US-1-AC2"
+     ],
+     "type": "unit",
+     "steps": [
+      "Submit a 30-working-day request against a 20-day entitlement"
+     ],
+     "expected_result": "Rejected with 'insufficient balance' showing the available balance."
+    },
+    {
+     "id": "TC-3",
+     "story_id": "US-1",
+     "acceptance_criterion_ids": [
+      "US-1-AC3"
+     ],
+     "type": "unit",
+     "steps": [
+      "Submit 21-24 Dec",
+      "Submit 23-29 Dec for the same employee"
+     ],
+     "expected_result": "Second request rejected as overlapping."
+    },
+    {
+     "id": "TC-4",
+     "story_id": "US-2",
+     "acceptance_criterion_ids": [
+      "US-2-AC1",
+      "US-2-AC3"
+     ],
+     "type": "unit",
+     "steps": [
+      "Another employee's manager tries to approve",
+      "Direct manager rejects with a blank reason"
+     ],
+     "expected_result": "Both actions refused."
+    },
+    {
+     "id": "TC-5",
+     "story_id": "US-2",
+     "acceptance_criterion_ids": [
+      "US-2-AC2",
+      "US-3-AC1",
+      "US-5-AC1"
+     ],
+     "type": "unit",
+     "steps": [
+      "Submit 2 days, check balance",
+      "Reject, check balance",
+      "Submit 3 days, approve, check balance and audit trail"
+     ],
+     "expected_result": "Balance 18 -> 20 -> 17; audit shows create, reject, create, approve with actor, timestamp and statuses."
+    },
+    {
+     "id": "TC-6",
+     "story_id": "US-2",
+     "acceptance_criterion_ids": [
+      "US-1-AC1",
+      "US-2-AC2"
+     ],
+     "type": "e2e",
+     "steps": [
+      "Employee submits a request in the Web UI",
+      "Manager approves it from the approval queue",
+      "Employee views the balance screen"
+     ],
+     "expected_result": "Balance reduced by the request's working days and request shown as APPROVED."
+    }
+   ],
+   "coverage_summary": "All US-1 and US-2 acceptance criteria plus US-3-AC1 and US-5-AC1 are covered by unit tests that ship with the implementation (see the measured execution report). TC-6 is an end-to-end case for when the Web UI exists.",
+   "gaps": [
+    "No UI exists yet, so TC-6 cannot run.",
+    "Persistence is in-memory; US-5-AC2 (immutability) needs the database implementation."
+   ],
+   "untestable_criteria": [
+    "US-3-AC2",
+    "US-4-AC1",
+    "US-4-AC2",
+    "US-5-AC2"
+   ]
+  }
+ ],
+ "judge:pm_to_ba:tier1": [
+  {
+   "dimension_scores": {
+    "completeness": 5,
+    "correctness_feasibility": 4,
+    "legacy_constraint_awareness": 5,
+    "clarity_actionability": 4,
+    "traceability": 5
+   },
+   "blocking_issues": [],
+   "feedback": "Objective, goals and metrics are measurable; the PM correctly records that no HR, payroll or identity systems are named instead of inventing them. Minor: name an owner for the leave policy."
+  }
+ ],
+ "judge:ba_to_architect:tier1": [
+  {
+   "dimension_scores": {
+    "completeness": 4,
+    "correctness_feasibility": 3,
+    "legacy_constraint_awareness": 2,
+    "clarity_actionability": 3,
+    "traceability": 4
+   },
+   "blocking_issues": [
+    "US-1..US-4 acceptance criteria are not testable.",
+    "NFR assumes Workday and a payroll push; the brief states integration targets are unconfirmed.",
+    "Only one open question; policy rules, identity provider and payroll format are unresolved."
+   ],
+   "feedback": "Acceptance criteria are not testable ('easy to use', 'work correctly', 'is accurate') and the NFRs assume a real-time Workday REST integration and automatic payroll push, although the brief says no HR or payroll system is confirmed. Rewrite each criterion as a checkable condition, add the missing overlap/balance rules, and move integrations to open questions."
+  },
+  {
+   "dimension_scores": {
+    "completeness": 5,
+    "correctness_feasibility": 4,
+    "legacy_constraint_awareness": 5,
+    "clarity_actionability": 4,
+    "traceability": 5
+   },
+   "blocking_issues": [],
+   "feedback": "Criteria are now testable, integrations are raised as open questions rather than assumed, and every story traces to a goal. Minor: US-4-AC2 needs an example of a mid-year policy change."
+  }
+ ],
+ "judge:ba_to_architect:tier2": [
+  {
+   "dimension_scores": {
+    "completeness": 3,
+    "correctness_feasibility": 3,
+    "legacy_constraint_awareness": 2,
+    "clarity_actionability": 3,
+    "traceability": 4
+   },
+   "blocking_issues": [
+    "Untestable acceptance criteria.",
+    "Invented Workday REST integration and payroll push."
+   ],
+   "feedback": "Confirmed: acceptance criteria are untestable and the Workday/payroll assumptions contradict the brief's constraint that no integration targets are confirmed. Retry with measurable criteria and integrations raised as open questions."
+  }
+ ],
+ "judge:architect_to_dev:tier1": [
+  {
+   "dimension_scores": {
+    "completeness": 5,
+    "correctness_feasibility": 4,
+    "legacy_constraint_awareness": 5,
+    "clarity_actionability": 4,
+    "traceability": 4
+   },
+   "blocking_issues": [],
+   "feedback": "Adapters with file-based first implementations respect the unconfirmed-integration constraint; risks have concrete mitigations; ADRs list alternatives. Minor: state the CSV import schedule owner."
+  }
+ ],
+ "judge:dev_to_qa:tier1": [
+  {
+   "dimension_scores": {
+    "completeness": 4,
+    "correctness_feasibility": 4,
+    "legacy_constraint_awareness": 5,
+    "clarity_actionability": 4,
+    "traceability": 5
+   },
+   "blocking_issues": [],
+   "feedback": "US-1 and US-2 implemented as designed with tests; other stories stubbed honestly; in-memory repository stated as a deviation."
+  }
+ ],
+ "judge:pm_to_ba:tier2": [
+  {
+   "dimension_scores": {
+    "completeness": 5,
+    "correctness_feasibility": 4,
+    "legacy_constraint_awareness": 5,
+    "clarity_actionability": 4,
+    "traceability": 5
+   },
+   "blocking_issues": [],
+   "feedback": "Confirmed."
+  }
+ ],
+ "judge:architect_to_dev:tier2": [
+  {
+   "dimension_scores": {
+    "completeness": 5,
+    "correctness_feasibility": 4,
+    "legacy_constraint_awareness": 5,
+    "clarity_actionability": 4,
+    "traceability": 4
+   },
+   "blocking_issues": [],
+   "feedback": "Confirmed."
+  }
+ ],
+ "judge:dev_to_qa:tier2": [
+  {
+   "dimension_scores": {
+    "completeness": 4,
+    "correctness_feasibility": 4,
+    "legacy_constraint_awareness": 5,
+    "clarity_actionability": 4,
+    "traceability": 5
+   },
+   "blocking_issues": [],
+   "feedback": "Confirmed."
+  }
+ ]
+}

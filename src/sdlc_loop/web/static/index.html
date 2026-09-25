@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>Robert Walters AI-Orchestrator</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" aria-label="Main navigation">
+    <div class="brand" title="Robert Walters AI-Orchestrator">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+      <span class="brand-name"><span>Robert Walters</span><small>AI-Orchestrator</small></span>
+    </div>
+    <nav>
+      <button class="nav-item active" data-view="workflow" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+        <span>New Workflow</span>
+      </button>
+      <button class="nav-item" data-view="history" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/></svg>
+        <span>Run History</span>
+      </button>
+      <button class="nav-item" data-view="guide" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 5v16M8 7h7M8 11h7"/></svg>
+        <span>Product Guide</span>
+      </button>
+      <a class="nav-item" href="/docs" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 13h6M9 17h6"/></svg>
+        <span>API Docs</span>
+      </a>
+    </nav>
+    <div class="sidebar-foot">
+      <button id="theme-toggle" class="btn ghost small" type="button" aria-pressed="false">Light theme</button>
+      <label id="apikey-wrap" class="apikey" hidden>
+        <span>API key</span>
+        <input id="apikey" type="password" autocomplete="off" placeholder="X-API-Key">
+      </label>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div id="status-bar" class="status-bar" role="status">
+      <span class="dot waiting" aria-hidden="true"></span><span>Connecting…</span>
+    </div>
+
+    <section id="view-workflow">
+      <section class="card">
+        <h1>Feature Requirement</h1>
+        <p class="sub">Describe what should be built. The Master Orchestrator validates it, plans the
+          workflow and hands it to the agents.</p>
+        <label for="requirement" class="visually-hidden">Feature requirement</label>
+        <textarea id="requirement" class="requirement" rows="4" maxlength="4000"
+          placeholder="Enter a feature requirement (e.g., Build a Leave Management System)."></textarea>
+        <div id="examples" class="examples" hidden></div>
+        <div id="validation" class="validation" role="alert" hidden></div>
+        <div class="card-foot">
+          <span id="pipeline" class="muted"></span>
+          <button id="submit" class="btn primary" type="button">
+            <span class="spinner" aria-hidden="true" hidden></span>
+            <span id="submit-label">Generate Intelligent SDLC Blueprint</span>
+            <svg id="submit-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg>
+          </button>
+        </div>
+      </section>
+
+      <div id="run" hidden>
+        <section class="card progress-card" aria-live="polite">
+          <div class="card-head">
+            <div>
+              <h2>Workflow Progress</h2>
+              <p class="sub" id="run-title"></p>
+            </div>
+            <div class="head-badges">
+              <span id="run-source" class="badge outline"></span>
+              <span id="run-status" class="badge waiting"></span>
+            </div>
+          </div>
+          <div class="progress-track" aria-hidden="true"><i id="progress-fill"></i></div>
+          <ol id="stepper" class="stepper"></ol>
+          <p id="activity" class="activity"></p>
+        </section>
+
+        <div id="run-details" hidden>
+          <section class="card">
+            <div class="card-head">
+              <h2>Master Orchestrator</h2>
+              <span id="run-clock" class="muted clock"></span>
+            </div>
+            <div class="orch-grid">
+              <div>
+                <h3>Requirement validation</h3>
+                <ul id="checks" class="checks"></ul>
+              </div>
+              <div>
+                <h3>Workflow plan</h3>
+                <ol id="plan" class="plan"></ol>
+                <p id="plan-note" class="note"></p>
+              </div>
+            </div>
+          </section>
+
+          <section id="agents" class="agents" aria-label="Agents"></section>
+          <section id="review" class="card review" hidden aria-live="assertive"></section>
+          <section id="final" class="card" hidden></section>
+
+          <section class="card">
+            <h2>Run Metrics</h2>
+            <p class="sub">Measured from this run's audit trail; updates as each agent completes.</p>
+            <div id="metrics" class="metrics"></div>
+            <h3>Token usage by agent</h3>
+            <div id="token-bars" class="token-bars"></div>
+          </section>
+
+          <section class="card">
+            <h2>Decisions</h2>
+            <p class="sub">Every routing decision: evaluator verdicts (pass, retry, escalate) and human actions.</p>
+            <div class="table-wrap"><table id="decisions" class="table"></table></div>
+          </section>
+
+          <section class="card">
+            <h2>Agent Outputs</h2>
+            <p class="sub">Every attempt each agent made, next to the evaluator's verdict on it.</p>
+            <div id="tabs" class="tabs" role="tablist" aria-label="Agents"></div>
+            <div id="attempts" class="attempts"></div>
+            <div id="output" class="output" role="tabpanel"></div>
+          </section>
+
+          <section class="card">
+            <h2>Evaluation Scores</h2>
+            <p class="sub" id="scores-sub"></p>
+            <div class="table-wrap"><table id="scores" class="table"></table></div>
+          </section>
+
+          <section class="card">
+            <h2>Execution Timeline</h2>
+            <p class="sub">Every step, in order, from the audit log.</p>
+            <ol id="timeline" class="timeline"></ol>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-history" hidden>
+      <section class="card">
+        <h1>Run History</h1>
+        <p class="sub">Most recent first. Select a run to open it.</p>
+        <div class="table-wrap"><table id="history" class="table"></table></div>
+      </section>
+    </section>
+
+    <section id="view-guide" class="guide" hidden>
+      <nav class="guide-toc" aria-label="Guide contents">
+        <p class="toc-title">On this page</p>
+        <a href="#g-overview">Overview</a>
+        <a href="#g-how">How it works</a>
+        <a href="#g-agents">Agent responsibilities</a>
+        <a href="#g-orchestrator">Master Orchestrator</a>
+        <a href="#g-llm">LLM integration</a>
+        <a href="#g-eval">Evaluation &amp; retry</a>
+        <a href="#g-dashboard">Dashboard guide</a>
+        <a href="#g-cost">Token &amp; cost optimisation</a>
+        <a href="#g-governance">Governance &amp; security</a>
+        <a href="#g-running">Running the project</a>
+        <a href="#g-trouble">Troubleshooting</a>
+      </nav>
+
+      <article class="guide-body">
+        <header id="g-overview" class="hero">
+          <div class="hero-top">
+            <span class="eyebrow">Product Guide</span>
+            <span id="guide-mode" class="badge waiting">Mode</span>
+          </div>
+          <h1>Robert Walters AI-Orchestrator</h1>
+          <p class="lead">AI-powered multi-agent SDLC planning platform with evaluator gates.</p>
+          <p>Enter one feature requirement. A Master Orchestrator validates it and runs it through five
+            specialist agents, from product goals to a tested implementation slice. An independent
+            Evaluator scores every handoff, retries weak work with specific feedback, and escalates to a
+            human when quality does not recover. Every model call, score and decision is written to a
+            tamper-evident audit trail.</p>
+          <div class="arch">
+            <div class="arch-node">Browser</div><div class="arch-arrow">→</div>
+            <div class="arch-node">FastAPI</div><div class="arch-arrow">→</div>
+            <div class="arch-node strong">Master Orchestrator</div><div class="arch-arrow">→</div>
+            <div class="arch-node">Agents</div><div class="arch-arrow">⇄</div>
+            <div class="arch-node">LLM Service</div><div class="arch-arrow">→</div>
+            <div class="arch-node strong">Evaluator</div>
+          </div>
+        </header>
+
+        <section id="g-how" class="guide-section">
+          <h2>How it works</h2>
+          <ol class="flow">
+            <li><b>Requirement</b><span>You describe what to build. Personal data is redacted before anything else sees it.</span></li>
+            <li><b>Master Orchestrator</b><span>Validates the requirement, plans which agent runs on which model, and dispatches the run.</span></li>
+            <li><b>Product Manager</b><span>Goals, success metrics, constraints and scope.</span></li>
+            <li><b>Business Analyst</b><span>User stories with testable acceptance criteria, traced to the goals.</span></li>
+            <li><b>Solutions Architect</b><span>Components, integration approach, risks with mitigations, decision records.</span></li>
+            <li><b>Developer</b><span>Runnable code for the highest-value stories; honest stubs for the rest.</span></li>
+            <li><b>QA Engineer</b><span>Test cases mapped to acceptance criteria, plus the measured result of checking the code.</span></li>
+            <li><b>Final Report</b><span>All artifacts, every decision and cost, downloadable as a formatted SDLC Execution Report (PDF).</span></li>
+          </ol>
+          <p class="note">After the Product Manager, Business Analyst, Architect and Developer, the Evaluator scores the handoff
+            before the next agent starts. A failed handoff goes back to the same agent with feedback.</p>
+        </section>
+
+        <section id="g-agents" class="guide-section">
+          <h2>Agent responsibilities</h2>
+          <div id="guide-agents" class="agent-docs"></div>
+        </section>
+
+        <section id="g-orchestrator" class="guide-section">
+          <h2>Master Orchestrator</h2>
+          <div class="callout">The Master Orchestrator is <b>not</b> a language model. It is deterministic code
+            that owns the workflow, so the order of agents and every quality gate behave the same way on every run.</div>
+          <ul class="checklist">
+            <li><b>Manages the workflow</b>: validates the requirement, plans the run and dispatches it.</li>
+            <li><b>Routes tasks</b>: each agent runs on the model its risk level calls for; the Architect and Developer always use the stronger model.</li>
+            <li><b>Maintains shared state</b>: every artifact lives in the workflow state, checkpointed after each step so a paused run survives a restart.</li>
+            <li><b>Handles retries</b>: the Evaluator's verdict decides the next step (pass, retry with feedback, or escalate to a human).</li>
+            <li><b>Records audit events</b>: validation, planning, every call and every decision go to an append-only, hash-chained log.</li>
+          </ul>
+          <pre class="diagram">Requirement
+    │
+    ▼
+Master Orchestrator ── validate ── plan ── dispatch
+    │
+    ▼
+PM ─▶ Gate ─▶ BA ─▶ Gate ─▶ Architect ─▶ Gate ─▶ Developer ─▶ Gate ─▶ QA ─▶ Final Report
+       │ retry      │ retry            │ retry            │ retry
+       └─ escalate ─┴─ escalate ───────┴─ escalate ───────┴─▶ Human review (accept · retry · abort)</pre>
+        </section>
+
+        <section id="g-llm" class="guide-section">
+          <h2>LLM integration</h2>
+          <pre class="diagram">Agent
+  │
+  ▼
+LLM Service   (one shared interface for every agent and the evaluator)
+  │
+  ├─▶ Claude API        Live mode
+  └─▶ Local simulator   Demo mode</pre>
+          <div class="two-col">
+            <div class="mini-card">
+              <h3><span class="dot passed"></span>Live mode</h3>
+              <p>Agents call Claude: Haiku for extraction-style work and first-pass judging, Sonnet for design,
+                code and borderline re-scoring. Any requirement produces real generated output, and tokens and
+                cost are reported by the API.</p>
+            </div>
+            <div class="mini-card">
+              <h3><span class="dot retry"></span>Demo mode</h3>
+              <p>No API key needed. Curated examples replay hand-authored outputs; any other requirement runs
+                through the local simulator (template content and a rule-based judge). No model is called, the
+                cost is $0, and every such run is labelled.</p>
+            </div>
+          </div>
+          <h3>Switching with ANTHROPIC_API_KEY</h3>
+          <p>At startup the server looks for <code>ANTHROPIC_API_KEY</code> (environment or <code>.env</code>) and checks it
+            with one free API call. A working key starts <b>live mode</b>; no key, or a rejected key, starts
+            <b>demo mode</b> and the status bar explains why. Force a mode with <code>SDLC_MODE=live</code> or
+            <code>SDLC_MODE=demo</code>. Both modes run the same orchestrator, evaluator, retry logic and audit trail;
+            only the model behind the LLM service changes.</p>
+        </section>
+
+        <section id="g-eval" class="guide-section">
+          <h2>Evaluation &amp; retry</h2>
+          <p>Every handoff is scored from 1 to 5 on five dimensions:</p>
+          <ul id="guide-dims" class="pill-list"></ul>
+          <p><b>Score</b> is the mean of the five. <b>Pass rule:</b> <span id="guide-pass-rule"></span>.
+            The verdict is computed in code from the scores, so a model can never approve its own work.</p>
+          <div class="ladder">
+            <div><b>Attempt 1</b><span>Agent's default model</span></div>
+            <div><b>Attempt 2</b><span>Same model, evaluator feedback added</span></div>
+            <div><b>Attempt 3</b><span>Stronger model, full feedback history</span></div>
+            <div><b>Human review</b><span>Accept as is, retry with guidance, or abort</span></div>
+          </div>
+          <p class="note">A score that lands between 3.0 and 3.99, or that would page a human, is re-scored by the stronger
+            judge first. A structural defect (for example code that does not parse) is rejected by a zero-cost
+            pre-gate before any judge runs.</p>
+          <h3>Example: the Evaluator rejects the PM's first draft</h3>
+          <div class="example-flow">
+            <div class="ex-step"><span class="badge running">PM</span> Attempt 1 produces a thin brief (two goals, unmeasurable metrics).</div>
+            <div class="ex-step"><span class="badge running">Evaluator</span> Score <b>3.8</b> (below 4.0) → <span class="badge retry">RETRY</span> with feedback: "Expected 3-5 measurable business goals, found 2."</div>
+            <div class="ex-step"><span class="badge running">PM</span> Attempt 2 revises the brief using the feedback.</div>
+            <div class="ex-step"><span class="badge running">Evaluator</span> Score <b>4.6</b> → <span class="badge passed">PASS</span>, and the Business Analyst starts.</div>
+          </div>
+        </section>
+
+        <section id="g-dashboard" class="guide-section">
+          <h2>Dashboard guide</h2>
+          <figure class="annotated">
+            <div class="shot">
+              <img src="/static/guide/run-overview.png" alt="A run in progress: workflow progress, orchestrator and agent cards" loading="lazy">
+              <span class="marker" data-pos="progress">1</span>
+              <span class="marker" data-pos="orchestrator">2</span>
+              <span class="marker" data-pos="agents">3</span>
+            </div>
+            <figcaption>A simulated run of “Evaluator Rejects PM Output (Retry Logic)”.</figcaption>
+          </figure>
+          <dl class="dash-list">
+            <dt><span class="num">1</span> Workflow Progress</dt>
+            <dd>A live stepper from the Orchestrator to the Final Report. Blue is running, gray is waiting, orange is a
+              retry, red needs attention, green is done. The line below names what is happening right now.</dd>
+            <dt><span class="num">2</span> Master Orchestrator</dt>
+            <dd>The validation checks the requirement passed and the plan: each agent, its model, what it receives and produces, and the gate after it.</dd>
+            <dt><span class="num">3</span> Agent cards</dt>
+            <dd>One card per agent with its status, every attempt, tokens, cost and the gate verdict. "View output" opens that agent's artifact.</dd>
+            <dt><span class="num">4</span> Final Result</dt>
+            <dd>Headline, gates passed, retries, escalations, calls, tokens, cost, what was produced, and a <b>Download SDLC Execution Report (PDF)</b> button.</dd>
+            <dt><span class="num">5</span> Run Metrics</dt>
+            <dd>First-pass rate, retry rate, stage time, model latency, cache hits and token usage per agent.</dd>
+            <dt><span class="num">6</span> Decisions</dt>
+            <dd>Every PASS / RETRY / ESCALATE and every human action, with who decided and why.</dd>
+            <dt><span class="num">7</span> Agent Outputs</dt>
+            <dd>Each attempt's artifact rendered as readable sections, next to the evaluator's score bars and feedback.</dd>
+            <dt><span class="num">8</span> Evaluation Scores</dt>
+            <dd>All five rubric scores for every gate and attempt.</dd>
+            <dt><span class="num">9</span> Execution Timeline</dt>
+            <dd>The audit trail in order, from validation to completion.</dd>
+          </dl>
+          <div class="legend">
+            <span class="badge running">Running</span><span class="badge waiting">Waiting</span>
+            <span class="badge retry">Retry</span><span class="badge review">Needs review</span>
+            <span class="badge failed">Failed</span><span class="badge passed">Passed</span>
+            <span class="badge human">Accepted by human</span>
+          </div>
+        </section>
+
+        <section id="g-cost" class="guide-section">
+          <h2>Token &amp; cost optimisation</h2>
+          <div class="grid-cards">
+            <div class="mini-card"><h3>Model routing</h3><p>Cheap Haiku for PM, BA, QA and first-pass judging; Sonnet only where mistakes are expensive (Architect, Developer, final retries).</p></div>
+            <div class="mini-card"><h3>Tiered evaluator</h3><p>The stronger judge re-scores only borderline results or results about to page a human.</p></div>
+            <div class="mini-card"><h3>Prompt caching &amp; reuse</h3><p>A byte-identical shared prefix (rules and rubric) is cached per model and reused by every agent.</p></div>
+            <div class="mini-card"><h3>Minimal context</h3><p>Each agent receives only the upstream artifact it needs, never the whole history.</p></div>
+            <div class="mini-card"><h3>Zero-cost pre-gate</h3><p>Structural defects are rejected in code before any judge tokens are spent.</p></div>
+            <div class="mini-card"><h3>Simulator fallback</h3><p>Without a key, demo mode exercises the full workflow for $0.</p></div>
+            <div class="mini-card"><h3>Token tracking</h3><p>Every call's input, output and cache tokens and cost are logged; Run Metrics shows them per agent.</p></div>
+            <div class="mini-card"><h3>Batch API</h3><p>Evaluation runs can go through the Message Batches API at half price.</p></div>
+          </div>
+        </section>
+
+        <section id="g-governance" class="guide-section">
+          <h2>Governance &amp; security</h2>
+          <ul class="checklist">
+            <li><b>PII handling</b>: the requirement is redacted (emails, card numbers, phone numbers and more) before any model call or log write, and audit payloads are redacted again.</li>
+            <li><b>Audit trail</b>: append-only and hash-chained; <code>sdlc verify-audit</code> detects tampering.</li>
+            <li><b>Secrets</b>: the API key is read only by the Anthropic SDK; it is never stored in settings, logs or run state. <code>.env</code> is git-ignored.</li>
+            <li><b>Access control</b>: with <code>SDLC_API_KEYS</code> set, keys map to roles; only a reviewer can resume an escalated run, and their identity is recorded.</li>
+            <li><b>Environment variables</b>: every setting is configured through <code>SDLC_*</code> variables or <code>.env</code>; see <code>.env.example</code>.</li>
+            <li><b>Browser</b>: a strict Content-Security-Policy, and model output is always shown as text, never executed as HTML.</li>
+          </ul>
+        </section>
+
+        <section id="g-running" class="guide-section">
+          <h2>Running the project</h2>
+          <pre class="code"><code>uv sync                            # install dependencies (first time)
+source .venv/bin/activate
+sdlc serve                         # or: python -m sdlc_loop.cli serve</code></pre>
+          <p>Open <a href="/">http://localhost:8000</a>. Swagger API documentation is at <a href="/docs">/docs</a>.</p>
+          <div class="table-wrap"><table class="table">
+            <thead><tr><th>Goal</th><th>Command</th></tr></thead>
+            <tbody>
+              <tr><td>Start (live if a key works, else demo)</td><td><code>make start</code></td></tr>
+              <tr><td>Development with auto-reload</td><td><code>make dev</code></td></tr>
+              <tr><td>Demo mode and open the browser</td><td><code>make ui</code></td></tr>
+              <tr><td>Production (live mode required)</td><td><code>make prod</code> or <code>docker compose up</code></td></tr>
+              <tr><td>Different port</td><td><code>sdlc serve --port 8001</code></td></tr>
+            </tbody>
+          </table></div>
+          <p class="note"><code>python -m src.sdlc_loop.cli serve</code> also works from the repository root; <code>sdlc serve</code> is the canonical form.</p>
+        </section>
+
+        <section id="g-trouble" class="guide-section">
+          <h2>Troubleshooting</h2>
+          <dl class="faq">
+            <dt>“Port 8000 is already in use”</dt>
+            <dd>Another copy is running. Stop it with <code>lsof -ti tcp:8000 | xargs kill</code>, or start on another port with <code>sdlc serve --port 8001</code>.</dd>
+            <dt>The status bar says Demo Mode although I set a key</dt>
+            <dd>The status bar shows the reason. Put <code>ANTHROPIC_API_KEY</code> in the environment or in <code>.env</code> in the directory you start from, then restart.</dd>
+            <dt>A run stops at “Needs review”</dt>
+            <dd>Expected: the Evaluator escalated. Use the review panel to accept, retry with guidance, or abort.</dd>
+            <dt>A live run shows Failed</dt>
+            <dd>The Final Result and Execution Timeline show the API error. Transient errors are retried automatically first.</dd>
+            <dt>Nothing happens when I click Generate Intelligent SDLC Blueprint</dt>
+            <dd>If API keys are enabled, enter one in the sidebar. Otherwise check the server log.</dd>
+          </dl>
+        </section>
+      </article>
+    </section>
+  </main>
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>

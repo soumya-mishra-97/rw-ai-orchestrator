@@ -1,0 +1,522 @@
+{
+ "_comment": "Offline demo / test script for Scenario 1. Architect attempt 1 is deliberately flawed (assumes a webhook + REST API on a mainframe that has neither) so the evaluator's RETRY path is exercised.",
+ "persona:pm": [
+  {
+   "objective": "Score every card transaction for fraud risk before it enters nightly mainframe settlement, without modifying or replacing the COBOL payments engine.",
+   "business_goals": [
+    "Score 100% of card transactions for fraud risk before they enter the nightly settlement batch.",
+    "Hold high-risk transactions out of settlement for analyst review before the batch window closes.",
+    "Log every fraud decision with its inputs, model version and reason codes for compliance audit.",
+    "Deliver without changing mainframe code and without a multi-year replacement programme."
+   ],
+   "success_metrics": [
+    "Fraud losses on settled card transactions reduced by 25% within two quarters of go-live.",
+    ">= 99.5% of transactions in each nightly settlement file scored before the batch cutoff.",
+    "100% of fraud decisions retrievable with reason codes within 1 business day of an audit request."
+   ],
+   "constraints": [
+    "Core payments engine is a 15-year-old COBOL system running on a mainframe.",
+    "Transactions are processed only in nightly batch settlement windows; there is no real-time processing path.",
+    "No public API, no webhook mechanism and no real-time hooks exist anywhere in the mainframe system.",
+    "The vendor no longer offers custom development on the platform, so mainframe code cannot be changed.",
+    "Compliance: every fraud decision must be logged and explainable.",
+    "Must not require a multi-year mainframe replacement project."
+   ],
+   "out_of_scope": [
+    "Replacing or re-platforming the COBOL payments engine.",
+    "Authorisation-time (point-of-sale) fraud blocking, which would need a real-time hook that does not exist.",
+    "Changes to chargeback and dispute handling."
+   ],
+   "stakeholders": [
+    "Head of Payments Operations",
+    "Fraud & Risk team",
+    "Compliance officer",
+    "Mainframe operations team",
+    "Internal audit"
+   ]
+  }
+ ],
+ "persona:ba": [
+  {
+   "user_stories": [
+    {
+     "id": "US-1",
+     "as_a": "fraud analyst",
+     "i_want": "every transaction in the nightly settlement extract scored before the settlement run",
+     "so_that": "risky transactions are identified before money moves",
+     "acceptance_criteria": [
+      {
+       "id": "US-1-AC1",
+       "description": "Given a settlement extract file, every valid transaction record receives a risk score between 0 and 1000 before the configured cutoff time."
+      },
+      {
+       "id": "US-1-AC2",
+       "description": "Records that fail to parse are reported in an exceptions file with their line number and are never silently dropped."
+      },
+      {
+       "id": "US-1-AC3",
+       "description": "Scoring completes for a 2-million-record extract within 45 minutes."
+      }
+     ]
+    },
+    {
+     "id": "US-2",
+     "as_a": "fraud analyst",
+     "i_want": "transactions at or above the risk threshold written to a hold file the settlement job reads",
+     "so_that": "they are excluded from tonight's settlement pending review",
+     "acceptance_criteria": [
+      {
+       "id": "US-2-AC1",
+       "description": "Transactions with score >= the configured threshold appear in the hold file in the mainframe's existing fixed-width inbound format."
+      },
+      {
+       "id": "US-2-AC2",
+       "description": "The hold file is delivered to the mainframe inbound drop directory before the batch window opens."
+      },
+      {
+       "id": "US-2-AC3",
+       "description": "If scoring has not finished by cutoff, an alert is raised to the on-call fraud analyst."
+      }
+     ]
+    },
+    {
+     "id": "US-3",
+     "as_a": "compliance officer",
+     "i_want": "every fraud decision logged with its inputs, model version and reason codes",
+     "so_that": "each decision can be explained during an audit",
+     "acceptance_criteria": [
+      {
+       "id": "US-3-AC1",
+       "description": "Each decision record contains transaction id, score, threshold, decision, top 3 reason codes, model version and timestamp."
+      },
+      {
+       "id": "US-3-AC2",
+       "description": "Decision records are append-only and retained for 7 years."
+      }
+     ]
+    },
+    {
+     "id": "US-4",
+     "as_a": "fraud analyst",
+     "i_want": "a review queue of held transactions with their reason codes",
+     "so_that": "I can release or decline them before the next settlement window",
+     "acceptance_criteria": [
+      {
+       "id": "US-4-AC1",
+       "description": "Held transactions are listed with score and reason codes."
+      },
+      {
+       "id": "US-4-AC2",
+       "description": "Released transactions are written to a release file consumed by the next nightly batch."
+      }
+     ]
+    }
+   ],
+   "non_functional_requirements": [
+    "Processing model is batch: scoring runs between receipt of the nightly settlement extract and the settlement window. No real-time processing is assumed.",
+    "Security: settlement extracts contain card data and are handled within PCI-DSS scope; card numbers are tokenised in decision logs; files are encrypted at rest.",
+    "Availability: scoring completes before cutoff on >= 99.5% of nights; failure behaviour is defined and alerted.",
+    "Explainability: every decision carries human-readable reason codes (compliance constraint)."
+   ],
+   "open_questions": [
+    "The request asks for 'real-time' scoring but the mainframe settles only in nightly batches with no hooks. Is scoring before settlement acceptable, or is authorisation-time blocking a hard requirement (a different programme)?",
+    "Does the settlement job already support an inbound hold/exclusion file, or can mainframe operations configure one without code changes?",
+    "If scoring misses the cutoff, should settlement proceed unmodified (fail-open) or hold everything (fail-closed)?",
+    "Is there an existing fraud model, or must one be built?"
+   ],
+   "traceability": [
+    {
+     "story_id": "US-1",
+     "business_goal_indices": [
+      0,
+      3
+     ]
+    },
+    {
+     "story_id": "US-2",
+     "business_goal_indices": [
+      1
+     ]
+    },
+    {
+     "story_id": "US-3",
+     "business_goal_indices": [
+      2
+     ]
+    },
+    {
+     "story_id": "US-4",
+     "business_goal_indices": [
+      1
+     ]
+    }
+   ]
+  }
+ ],
+ "persona:architect": [
+  {
+   "components": [
+    {
+     "name": "Fraud Scoring API",
+     "responsibility": "Scores each card transaction synchronously at authorisation time."
+    },
+    {
+     "name": "Mainframe Payments Connector",
+     "responsibility": "Calls the payments engine's REST authorisation endpoint to decline risky transactions."
+    },
+    {
+     "name": "Decision Store",
+     "responsibility": "Stores fraud decisions."
+    }
+   ],
+   "integration_approach": "Subscribe to the payments engine's transaction webhook to receive each card authorisation in real time, score it in the Fraud Scoring API and call the mainframe's REST authorisation endpoint to block high-risk transactions before they are approved.",
+   "data_flow": "Mainframe webhook -> Fraud Scoring API -> score -> REST call back to the mainframe to approve or decline -> Decision Store.",
+   "risks": [
+    {
+     "description": "Scoring latency could slow authorisations.",
+     "mitigation": "Autoscale the scoring API and enforce a 50 ms timeout with approve-on-timeout."
+    },
+    {
+     "description": "Model drift reduces detection quality.",
+     "mitigation": "Retrain the model monthly on labelled chargebacks."
+    }
+   ],
+   "adrs": [
+    {
+     "title": "Synchronous scoring",
+     "decision": "Score at authorisation time via webhook.",
+     "alternatives_considered": [
+      "Nightly batch scoring"
+     ],
+     "rationale": "Real-time blocking stops fraud earliest."
+    },
+    {
+     "title": "REST integration",
+     "decision": "Use the mainframe REST API for decisions.",
+     "alternatives_considered": [
+      "File exchange"
+     ],
+     "rationale": "Simpler than file handling."
+    }
+   ]
+  },
+  {
+   "components": [
+    {
+     "name": "Settlement Extract Watcher",
+     "responsibility": "Detects the nightly fixed-width settlement extract the mainframe already writes to the SFTP drop and starts a scoring run."
+    },
+    {
+     "name": "Legacy Extract Adapter",
+     "responsibility": "Parses the fixed-width extract (copybook-derived, versioned layout) into canonical Transaction records; writes unparseable records to an exceptions file with line numbers."
+    },
+    {
+     "name": "Fraud Scoring Engine",
+     "responsibility": "Scores each Transaction 0-1000 with explainable reason codes."
+    },
+    {
+     "name": "Hold File Writer",
+     "responsibility": "Writes transactions at or above threshold to a hold file in the mainframe's existing inbound fixed-width format and delivers it to the inbound drop directory."
+    },
+    {
+     "name": "Decision Audit Log",
+     "responsibility": "Append-only store of every decision with inputs, model version, threshold and reason codes."
+    },
+    {
+     "name": "Analyst Review Queue",
+     "responsibility": "Lists held transactions and writes a release file for the next nightly batch."
+    }
+   ],
+   "integration_approach": "The mainframe is treated as a closed batch system behind an adapter; nothing on it is changed. Inbound: the Settlement Extract Watcher polls the SFTP drop for the nightly settlement extract the mainframe already produces, and the Legacy Extract Adapter is the only component that knows the fixed-width layout. Outbound: decisions return to the mainframe only as a hold file (and later a release file) in its existing inbound file format, delivered to the inbound drop directory before the settlement window opens. No API, webhook, real-time hook or mainframe code change is assumed; all coupling is file-in/file-out within the batch window.",
+   "data_flow": "Mainframe writes nightly extract -> Extract Watcher -> Legacy Extract Adapter (valid records + exceptions file) -> Fraud Scoring Engine (score + reason codes) -> Decision Audit Log (every decision) and Hold File Writer (score >= threshold) -> hold file in inbound drop -> mainframe settlement job excludes held transactions -> Analyst Review Queue -> release file consumed by the next nightly batch.",
+   "risks": [
+    {
+     "description": "Scoring does not finish before the settlement cutoff.",
+     "mitigation": "Size for 3x peak volume, checkpoint progress per 100k records, alert the on-call analyst at T-30 minutes; fail-open vs fail-closed default taken from the open question before go-live."
+    },
+    {
+     "description": "Extract layout drifts or contains undocumented fields.",
+     "mitigation": "Adapter validates against a versioned copybook-derived layout; unparseable records go to the exceptions file and trigger an alert instead of being dropped."
+    },
+    {
+     "description": "The settlement job may not accept an inbound hold file without a code change.",
+     "mitigation": "Confirm with mainframe operations in discovery week 1; fallback is analyst-driven manual holds through the existing operator screen, driven by the review queue."
+    }
+   ],
+   "adrs": [
+    {
+     "title": "Pre-settlement batch scoring instead of real-time",
+     "decision": "Score the nightly settlement extract before the settlement window.",
+     "alternatives_considered": [
+      "Authorisation-time scoring via a real-time hook",
+      "Post-settlement detection only"
+     ],
+     "rationale": "The mainframe has no real-time hooks and cannot be changed; pre-settlement scoring still stops money moving on risky transactions."
+    },
+    {
+     "title": "File-based adapter as the only integration surface",
+     "decision": "Integrate exclusively through the existing extract and an inbound hold file.",
+     "alternatives_considered": [
+      "Screen-scraping operator terminals",
+      "Vendor-built interface"
+     ],
+     "rationale": "Vendor offers no custom development; files are the only supported interface."
+    },
+    {
+     "title": "Rule-based explainable scoring for phase 1",
+     "decision": "Start with weighted rules that emit reason codes.",
+     "alternatives_considered": [
+      "Opaque ML model"
+     ],
+     "rationale": "Compliance requires every decision to be explainable; an ML model can replace the rules later behind the same interface."
+    }
+   ]
+  }
+ ],
+ "persona:dev": [
+  {
+   "files": [
+    {
+     "path": "fraud/__init__.py",
+     "language": "python",
+     "content": ""
+    },
+    {
+     "path": "fraud/adapter.py",
+     "language": "python",
+     "content": "\"\"\"Legacy Extract Adapter: parses the mainframe's fixed-width settlement extract.\"\"\"\nfrom dataclasses import dataclass\n\nFIELDS = ((\"txn_id\", 0, 12), (\"card_token\", 12, 28), (\"amount_cents\", 28, 38),\n          (\"mcc\", 38, 42), (\"country\", 42, 44), (\"hour\", 44, 46))\nRECORD_LENGTH = 46\n\n\n@dataclass(frozen=True)\nclass Transaction:\n    txn_id: str\n    card_token: str\n    amount_cents: int\n    mcc: str\n    country: str\n    hour: int\n\n\n@dataclass(frozen=True)\nclass ParseError:\n    line_number: int\n    reason: str\n\n\ndef parse_extract(lines):\n    \"\"\"Return (transactions, errors). Malformed records are reported, never dropped.\"\"\"\n    transactions, errors = [], []\n    for number, raw in enumerate(lines, start=1):\n        line = raw.rstrip(\"\\n\")\n        if not line.strip():\n            continue\n        if len(line) != RECORD_LENGTH:\n            errors.append(ParseError(number, f\"expected {RECORD_LENGTH} chars, got {len(line)}\"))\n            continue\n        values = {name: line[start:end].strip() for name, start, end in FIELDS}\n        try:\n            transactions.append(Transaction(\n                txn_id=values[\"txn_id\"], card_token=values[\"card_token\"],\n                amount_cents=int(values[\"amount_cents\"]), mcc=values[\"mcc\"],\n                country=values[\"country\"], hour=int(values[\"hour\"]),\n            ))\n        except ValueError as exc:\n            errors.append(ParseError(number, str(exc)))\n    return transactions, errors\n"
+    },
+    {
+     "path": "fraud/scoring.py",
+     "language": "python",
+     "content": "\"\"\"Fraud Scoring Engine + Hold File Writer (explainable weighted rules).\"\"\"\nHIGH_RISK_MCC = {\"7995\", \"4829\", \"6051\"}\n\n\ndef score(txn, home_country=\"US\"):\n    \"\"\"Return (score 0-1000, reason codes).\"\"\"\n    points, reasons = 0, []\n    if txn.amount_cents >= 500_000:\n        points += 400\n        reasons.append(\"R01_HIGH_AMOUNT\")\n    if txn.mcc in HIGH_RISK_MCC:\n        points += 300\n        reasons.append(\"R02_HIGH_RISK_MCC\")\n    if txn.country != home_country:\n        points += 200\n        reasons.append(\"R03_FOREIGN_COUNTRY\")\n    if txn.hour < 5:\n        points += 100\n        reasons.append(\"R04_UNUSUAL_HOUR\")\n    return min(points, 1000), reasons\n\n\ndef build_hold_file(transactions, threshold=600):\n    \"\"\"Hold records in the mainframe's inbound fixed-width layout: id(12) score(4) reasons(40).\"\"\"\n    lines = []\n    for txn in transactions:\n        value, reasons = score(txn)\n        if value >= threshold:\n            lines.append(f\"{txn.txn_id:<12}{value:04d}{','.join(reasons[:3]):<40}\")\n    return lines\n"
+    },
+    {
+     "path": "test_fraud.py",
+     "language": "python",
+     "content": "from fraud.adapter import parse_extract\nfrom fraud.scoring import build_hold_file, score\n\n\ndef _line(txn_id, amount, mcc, country, hour):\n    return f\"{txn_id:<12}{'tok1234567890abc':<16}{amount:010d}{mcc:<4}{country:<2}{hour:02d}\"\n\n\ndef test_every_valid_record_is_parsed_and_scored():\n    txns, errors = parse_extract([_line(\"T1\", 1000, \"5411\", \"US\", 14), _line(\"T2\", 900000, \"7995\", \"RU\", 3)])\n    assert [t.txn_id for t in txns] == [\"T1\", \"T2\"]\n    assert errors == []\n    assert all(0 <= score(t)[0] <= 1000 for t in txns)\n\n\ndef test_malformed_record_is_reported_with_line_number():\n    txns, errors = parse_extract([_line(\"T1\", 1000, \"5411\", \"US\", 14), \"garbage\"])\n    assert len(txns) == 1\n    assert errors[0].line_number == 2\n\n\ndef test_high_risk_transaction_goes_to_hold_file():\n    txns, _ = parse_extract([_line(\"T1\", 1000, \"5411\", \"US\", 14), _line(\"T2\", 900000, \"7995\", \"RU\", 3)])\n    hold = build_hold_file(txns)\n    assert len(hold) == 1\n    assert hold[0].startswith(\"T2\")\n"
+    }
+   ],
+   "implemented_story_ids": [
+    "US-1",
+    "US-2"
+   ],
+   "stubbed_stories": [
+    {
+     "story_id": "US-3",
+     "plan": "Decision Audit Log: append each (txn_id, score, threshold, decision, reasons, model_version, timestamp) to a WORM object store partitioned by settlement date; card numbers are already tokenised by the extract."
+    },
+    {
+     "story_id": "US-4",
+     "plan": "Analyst Review Queue: small web UI over the hold file; releases are written to a release file in the inbound drop for the next nightly batch."
+    }
+   ],
+   "deviations": [
+    "Cutoff alerting (US-2-AC3) is not implemented in this slice; it belongs to the scheduler that runs the job."
+   ],
+   "summary": "Implemented the Legacy Extract Adapter and the rule-based Fraud Scoring Engine with Hold File Writer (US-1, US-2) exactly as the file-in/file-out integration approach describes; the mainframe is represented only by its extract and hold-file formats. US-3 and US-4 are stubbed with plans."
+  }
+ ],
+ "persona:qa": [
+  {
+   "test_cases": [
+    {
+     "id": "TC-1",
+     "story_id": "US-1",
+     "acceptance_criterion_ids": [
+      "US-1-AC1"
+     ],
+     "type": "unit",
+     "steps": [
+      "Parse an extract with two valid records",
+      "Score each record"
+     ],
+     "expected_result": "Both records parsed; each score within 0-1000."
+    },
+    {
+     "id": "TC-2",
+     "story_id": "US-1",
+     "acceptance_criterion_ids": [
+      "US-1-AC2"
+     ],
+     "type": "unit",
+     "steps": [
+      "Parse an extract containing one malformed line at line 2"
+     ],
+     "expected_result": "One transaction returned; exception reported with line_number 2."
+    },
+    {
+     "id": "TC-3",
+     "story_id": "US-1",
+     "acceptance_criterion_ids": [
+      "US-1-AC3"
+     ],
+     "type": "integration",
+     "steps": [
+      "Generate a 2,000,000-record synthetic extract",
+      "Run adapter + scoring end to end and time it"
+     ],
+     "expected_result": "Completes within 45 minutes on production-sized hardware."
+    },
+    {
+     "id": "TC-4",
+     "story_id": "US-2",
+     "acceptance_criterion_ids": [
+      "US-2-AC1"
+     ],
+     "type": "unit",
+     "steps": [
+      "Build a hold file from one low-risk and one high-risk transaction"
+     ],
+     "expected_result": "Only the high-risk transaction appears, in the fixed-width inbound layout."
+    },
+    {
+     "id": "TC-5",
+     "story_id": "US-2",
+     "acceptance_criterion_ids": [
+      "US-2-AC2",
+      "US-1-AC1"
+     ],
+     "type": "e2e",
+     "steps": [
+      "Drop a nightly extract into the SFTP drop",
+      "Wait for the scoring run",
+      "Check the inbound drop directory before the window opens"
+     ],
+     "expected_result": "Hold file present before the configured window-open time."
+    }
+   ],
+   "coverage_summary": "US-1 and US-2 acceptance criteria have test cases; 3 unit tests generated by Dev were executed (see execution report). US-2-AC3 and all US-3/US-4 criteria are untestable in this slice because they are stubbed.",
+   "gaps": [
+    "No performance test was executed; TC-3 requires production-sized data.",
+    "Cutoff alerting is not implemented."
+   ],
+   "untestable_criteria": [
+    "US-2-AC3",
+    "US-3-AC1",
+    "US-3-AC2",
+    "US-4-AC1",
+    "US-4-AC2"
+   ]
+  }
+ ],
+ "judge:pm_to_ba:tier1": [
+  {
+   "dimension_scores": {
+    "completeness": 5,
+    "correctness_feasibility": 4,
+    "legacy_constraint_awareness": 5,
+    "clarity_actionability": 4,
+    "traceability": 5
+   },
+   "blocking_issues": [],
+   "feedback": "All six constraints captured verbatim; metrics are measurable. Minor: stakeholders could name the PCI-DSS owner."
+  }
+ ],
+ "judge:ba_to_architect:tier1": [
+  {
+   "dimension_scores": {
+    "completeness": 4,
+    "correctness_feasibility": 4,
+    "legacy_constraint_awareness": 5,
+    "clarity_actionability": 4,
+    "traceability": 5
+   },
+   "blocking_issues": [],
+   "feedback": "Stories trace to goals; the real-time vs batch conflict is correctly raised as an open question. Minor: US-1-AC3 volume should be confirmed."
+  }
+ ],
+ "judge:architect_to_dev:tier1": [
+  {
+   "dimension_scores": {
+    "completeness": 3,
+    "correctness_feasibility": 1,
+    "legacy_constraint_awareness": 1,
+    "clarity_actionability": 4,
+    "traceability": 3
+   },
+   "blocking_issues": [
+    "Assumes a webhook that does not exist (constraint: no webhook mechanism).",
+    "Assumes a mainframe REST API (constraint: no public API).",
+    "Real-time authorisation blocking contradicts the batch-only settlement constraint."
+   ],
+   "feedback": "The design subscribes to a 'transaction webhook' and calls a 'REST authorisation endpoint' on the mainframe. The ProblemBrief states there is no public API, no webhook and no real-time hook, and the code cannot be changed. Redesign around the nightly batch: consume the existing settlement extract through an adapter and return decisions via a file the settlement job can read before the window."
+  },
+  {
+   "dimension_scores": {
+    "completeness": 5,
+    "correctness_feasibility": 4,
+    "legacy_constraint_awareness": 5,
+    "clarity_actionability": 4,
+    "traceability": 4
+   },
+   "blocking_issues": [],
+   "feedback": "Design is file-in/file-out within the batch window; all constraints respected; risks have concrete mitigations. Minor: name the SFTP drop owner."
+  }
+ ],
+ "judge:dev_to_qa:tier1": [
+  {
+   "dimension_scores": {
+    "completeness": 4,
+    "correctness_feasibility": 4,
+    "legacy_constraint_awareness": 5,
+    "clarity_actionability": 4,
+    "traceability": 4
+   },
+   "blocking_issues": [],
+   "feedback": "US-1 and US-2 implemented through the adapter as designed; US-3/US-4 stubbed honestly; deviation stated. Minor: add a test for cutoff alerting when implemented."
+  }
+ ],
+ "judge:pm_to_ba:tier2": [
+  {
+   "dimension_scores": {
+    "completeness": 5,
+    "correctness_feasibility": 4,
+    "legacy_constraint_awareness": 5,
+    "clarity_actionability": 4,
+    "traceability": 5
+   },
+   "blocking_issues": [],
+   "feedback": "Confirmed."
+  }
+ ],
+ "judge:ba_to_architect:tier2": [
+  {
+   "dimension_scores": {
+    "completeness": 4,
+    "correctness_feasibility": 4,
+    "legacy_constraint_awareness": 5,
+    "clarity_actionability": 4,
+    "traceability": 5
+   },
+   "blocking_issues": [],
+   "feedback": "Confirmed."
+  }
+ ],
+ "judge:architect_to_dev:tier2": [
+  {
+   "dimension_scores": {
+    "completeness": 5,
+    "correctness_feasibility": 4,
+    "legacy_constraint_awareness": 5,
+    "clarity_actionability": 4,
+    "traceability": 4
+   },
+   "blocking_issues": [],
+   "feedback": "Confirmed."
+  }
+ ],
+ "judge:dev_to_qa:tier2": [
+  {
+   "dimension_scores": {
+    "completeness": 4,
+    "correctness_feasibility": 4,
+    "legacy_constraint_awareness": 5,
+    "clarity_actionability": 4,
+    "traceability": 4
+   },
+   "blocking_issues": [],
+   "feedback": "Confirmed."
+  }
+ ]
+}

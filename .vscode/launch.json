@@ -1,0 +1,133 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "CLI: Demo (offline, no API key)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "sdlc_loop.cli",
+      "args": [
+        "run",
+        "--scenario",
+        "1",
+        "--offline",
+        "--no-interactive"
+      ],
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true,
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "CLI: Run scenario (live, prompts on escalation)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "sdlc_loop.cli",
+      "args": [
+        "run",
+        "--scenario",
+        "1"
+      ],
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true,
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "CLI: Show audit trail of last demo run",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "sdlc_loop.cli",
+      "args": [
+        "audit",
+        "${input:runId}"
+      ],
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true,
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Web UI + API: auto mode (:8000)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "sdlc_loop.cli",
+      "args": [
+        "serve",
+        "--mode",
+        "auto"
+      ],
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true,
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Web UI + API: demo mode, no API key (:8000)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "sdlc_loop.cli",
+      "args": [
+        "serve",
+        "--mode",
+        "demo"
+      ],
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true,
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Eval: Golden scenarios (offline self-test)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "evals.run_eval",
+      "args": [
+        "--offline",
+        "--trials",
+        "2"
+      ],
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true,
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Eval: Judge benchmark (offline)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "evals.fault_injection",
+      "args": [
+        "judge",
+        "--offline",
+        "--repeats",
+        "1"
+      ],
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true,
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Tests: pytest (all)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "-v"
+      ],
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true,
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Current file",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${file}",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true,
+      "console": "integratedTerminal"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "runId",
+      "type": "promptString",
+      "description": "Run id (see terminal output of a previous run, e.g. run-xxxxxxxxxxxx)"
+    }
+  ]
+}

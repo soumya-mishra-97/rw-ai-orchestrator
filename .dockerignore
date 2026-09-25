@@ -1,0 +1,14 @@
+.git
+.venv
+.env
+var
+**/__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+evals/reports
+evals/labels
+docs
+tests
+.vscode

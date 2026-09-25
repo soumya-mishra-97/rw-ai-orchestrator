@@ -1,0 +1,17 @@
+services:
+  sdlc:
+    build: .
+    image: robert-walters-ai-orchestrator:latest
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env        # ANTHROPIC_API_KEY for live mode; omit the file for demo mode
+        required: false
+    environment:
+      SDLC_MODE: ${SDLC_MODE:-auto}
+    volumes:
+      - sdlc-data:/data   # audit log + checkpoints survive restarts
+    restart: unless-stopped
+
+volumes:
+  sdlc-data:
